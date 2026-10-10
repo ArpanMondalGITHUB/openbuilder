@@ -4,6 +4,7 @@
   "main": "index.ts",
   "scripts": {
     "dev": "nodemon --exec ts-node index.ts",
+    "test": "node --test -r ts-node/register tests/auth.tokens.test.ts",
     "migrate": "node-pg-migrate up --migrations-dir db/migrations",
     "migrate:down": "node-pg-migrate down --migrations-dir db/migrations"
   },

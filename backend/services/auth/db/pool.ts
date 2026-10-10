@@ -1,12 +1,11 @@
 import pg from "pg";
+import { config } from "../config/auth.config";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is not set");
-
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: config.databaseUrl,
+  ssl: { rejectUnauthorized: !config.dbSslInsecure },
 });
 
 export default pool;

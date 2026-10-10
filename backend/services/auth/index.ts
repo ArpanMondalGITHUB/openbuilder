@@ -1,14 +1,16 @@
+import "dotenv/config";
 import express from "express"
-import dotenv from "dotenv"
 import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes";
-dotenv.config();
+import { errorHandler } from "./middlewares/auth.middlewares";
+import { config } from "./config/auth.config";
 
-const port = Number(process.env.PORT ?? 8001)
+const port = config.port
 
 
 const app = express();
 
+app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -19,6 +21,8 @@ app.get('/', (req, res) => {
     res.json({ status: 'hllo from auth' })
 });
 
+app.use(errorHandler);
+
 app.listen(port, () => {
-    console.log(`gateway start to listning on PORT ${port}`)
+    console.log(`auth start to listning on PORT ${port}`)
 });

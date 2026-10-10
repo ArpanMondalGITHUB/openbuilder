@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import pool from "./pool"
 
 export interface User {
@@ -6,7 +7,7 @@ export interface User {
     email:            string
     passwordHash:     string
     createdAt:        Date
-    updateAt:         Date
+    updatedAt:         Date
 };
 
 export interface RefreshToken {
@@ -63,6 +64,9 @@ export const createUser = async (data:{
 };
 
 // RefreshToken queries
+const refreshTokenDigest = (token: string) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
 export const createRefreshToken = async (data: {
   token: string;
   userId: string;
@@ -71,19 +75,20 @@ export const createRefreshToken = async (data: {
   await pool.query(
     `INSERT INTO refresh_tokens (token, user_id, expires_at)
      VALUES ($1, $2, $3)`,
-    [data.token, data.userId, data.expiresAt]
+    [refreshTokenDigest(data.token), data.userId, data.expiresAt]
   );
 };
 
 export const findRefreshToken = async (token:string) :Promise<RefreshToken | null> => {
-    const {rows} = await pool.query(
-        `SELECT * FROM refresh_tokens WHERE token = $1 LIMIT 1`,
-        [token]
+    const {rows} = await pool.query<RefreshToken>(
+        `SELECT id,token,user_id AS "userId", expires_at AS "expiresAt", created_at AS "createdAt"
+        FROM refresh_tokens WHERE token = $1 OR token = $2 LIMIT 1`,
+        [refreshTokenDigest(token), token]
     );
     return rows[0] ?? null;
 };
 
 export const deleteRefreshToken = async (token:string) => {
-    await pool.query(`DELETE FROM refresh_tokens WHERE token = $1`,[token]);
+    await pool.query(`DELETE FROM refresh_tokens WHERE token = $1 OR token = $2`,[refreshTokenDigest(token), token]);
 }
 

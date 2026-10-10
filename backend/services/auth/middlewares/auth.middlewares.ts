@@ -3,12 +3,14 @@ import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken"
 import {config} from "../config/auth.config"
 import { rateLimit } from 'express-rate-limit';
+import { redisGet, redisSet } from "../../../shared/redis/redis";
+import { ACCESS_TOKEN_TTL_SECONDS } from "../helpers/auth.helpers";
 
 export class ApiError extends Error{
     constructor(public statusCode:number,message:string){
         super(message);
     }
-}
+};
 
 export const validate =
   (schema: ZodType, source: "body" | "query" | "params" = "body") =>
@@ -44,16 +46,33 @@ export const errorHandler = (
   return res.status(500).json({ message: "Internal server error" });
 };
 
+export const accessTokenBlockKey = (jti: string) => `auth:access-token:${jti}`;
+export const accessTokenBlockTtl = (
+  exp?: number,
+  now = Math.floor(Date.now() / 1000)
+) => Math.max((exp ?? now + ACCESS_TOKEN_TTL_SECONDS) - now, 1);
+
+export const blockAccessToken = async (jti: string, exp?: number) => {
+  await redisSet(accessTokenBlockKey(jti), "1", accessTokenBlockTtl(exp));
+};
+
+const isAccessTokenBlocked = async (jti: string) =>
+  (await redisGet(accessTokenBlockKey(jti))) === "1";
 
 export const requireAuth = async(req:Request,res:Response , next:NextFunction) => {
   const token = req.headers.authorization?.replace("Bearer ","");
-  if(!token) throw new ApiError(401,"Not authorized");
+  if(!token) return next(new ApiError(401,"Not authorized"));
   try {
-    const payload = jwt.verify(token,config.jwtSecret) as {sub:string};
+    const payload = jwt.verify(token,config.jwtSecret) as {sub?:string; jti?: string; exp?: number};
+    if (!payload.sub || !payload.jti || await isAccessTokenBlocked(payload.jti)) {
+      throw new ApiError(401, "Invalid or expired token");
+    }
     (req as any).userId = payload.sub;
+    (req as any).accessTokenJti = payload.jti;
+    (req as any).accessTokenExp = payload.exp;
     next();
   } catch (error) {
-    throw new ApiError(401, "Invalid or expired token");
+    next(error instanceof ApiError ? error : new ApiError(401, "Invalid or expired token"));
   }
 };
 
@@ -66,6 +85,18 @@ export const authLimiter = rateLimit({
   handler: (req: Request, res: Response) => {
     res.status(429).json({ 
       error: 'Too many sign-in attempts. Please try again in 15 minutes.' 
+    });
+  }
+});
+
+export const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({
+      error: 'Too many refresh attempts. Please try again in 15 minutes.'
     });
   }
 });
