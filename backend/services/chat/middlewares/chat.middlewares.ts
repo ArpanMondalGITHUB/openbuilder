@@ -7,13 +7,12 @@ export class ApiError extends Error {
     }
 }
 
-// Gateway verifies JWT and attaches x-user-id; chat trusts this header.
-export const requireUser = (req: Request, _res: Response, next: NextFunction) => {
-    const userId = req.headers["x-user-id"]
-    if (!userId || typeof userId !== "string") {
-        return next(new ApiError(401, "Not authorized"))
-    }
-    ;(req as any).userId = userId
+// Gateway verifies JWT, sets req.user, forwards x-user-id + x-user-jti headers.
+// Chat trusts these headers — the gateway is the single trust boundary.
+export const requireGatewayUser = (req: Request, _res: Response, next: NextFunction) => {
+    const id = req.header("x-user-id")
+    if (!id) return next(new ApiError(401, "Unauthorized"));
+    (req as any).user = { id, jti: req.header("x-user-jti") }
     next()
 }
 
