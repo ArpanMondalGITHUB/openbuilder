@@ -3,7 +3,7 @@ import express from "express"
 import cookieParser from "cookie-parser";
 import { config } from "./config/chat.config";
 import { errorHandler } from "./middlewares/chat.middlewares";
-// import chatRouter from "./routes/chat.routes";
+import chatRouter from "./routes/chat.routes";
 
 const port = config.port
 
@@ -20,7 +20,7 @@ app.get('/', (req, res) => {
     res.json({ status: 'hllo from chat' })
 });
 
-// app.use("/api/v1/chat", chatRouter);
+app.use("/api/v1/chat", chatRouter);
 app.use(errorHandler);
 
 app.listen(port, () => {

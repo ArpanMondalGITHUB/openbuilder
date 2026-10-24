@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { requireGatewayUser, validate } from "../middlewares/chat.middlewares"
+import { handleCreateConversation } from "../controllers/chat.controllers"
 
 import {
     conversationIdParamSchema,
@@ -11,9 +12,9 @@ const router = Router()
 
 router.use(requireGatewayUser)
 
-router.post("/conversations", validate(createConversationSchema),)
-router.get("/conversations", )
-router.get("/conversations/:id/messages", validate(conversationIdParamSchema, "params"), )
-router.post("/conversations/:id/messages", validate(conversationIdParamSchema, "params"), validate(sendMessageSchema), )
+router.post("/conversations", validate(createConversationSchema), handleCreateConversation)
+// router.get("/conversations", handleListConversations)
+// router.get("/conversations/:id/messages", validate(conversationIdParamSchema, "params"), handleListMessages)
+// router.post("/conversations/:id/messages", validate(conversationIdParamSchema, "params"), validate(sendMessageSchema), handleSendMessage)
 
 export default router
