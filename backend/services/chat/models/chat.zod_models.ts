@@ -11,14 +11,16 @@ export const createConversationSchema = z.object({
     title: titleSchema,
 })
 
-export const sendMessageSchema = z.object({
+// Role is NOT client-supplied. The route always writes "user";
+// the assistant reply is inserted server-side when the AI is wired up.
+export const saveMessageSchema = z.object({
     content: contentSchema,
 })
 
 export const conversationIdParamSchema = z.object({
-    id: conversationIdSchema,
+    conversationId: conversationIdSchema,
 })
 
 // Types
 export type CreateConversation = z.infer<typeof createConversationSchema>
-export type SendMessage = z.infer<typeof sendMessageSchema>
+export type SendMessage = z.infer<typeof saveMessageSchema>
