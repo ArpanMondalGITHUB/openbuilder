@@ -4,6 +4,7 @@ import {
     createMessage,
     listMessages,
     listUserConversations,
+    updateConversation,
 } from "../db/chat.queries"
 import { ApiError } from "../middlewares/chat.middlewares";
 
@@ -37,6 +38,20 @@ export const handleGetConversation = async(req:Request,res:Response,next:NextFun
         if (!conversations) throw new ApiError(400,"no conversaion found ");
 
         res.json({conversations});
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const handleUpdateConversation = async(req:Request,res:Response,next:NextFunction) => {
+    try {
+        const conversationId = req.params.conversationId as string
+        const { title } = req.body;
+
+        const conversation = await updateConversation(conversationId, userIdOf(req), title);
+        if (!conversation) throw new ApiError(404, "Conversation not found");
+
+        res.json({conversation});
     } catch (error) {
         next(error);
     }
