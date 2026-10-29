@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express"
 import cookieParser from "cookie-parser";
 import { config } from "./config/agent.config";
+import { errorHandler } from "./middlewares/agent.middlewares";
+import agentRouter from "./routes/agent.routes";
 
 
 const port = config.port
@@ -16,10 +18,13 @@ app.use(cookieParser());
 
 
 app.get('/', (req, res) => {
-    res.json({ status: 'hllo from chat' })
+    res.json({ status: 'hllo from agent' })
 });
+
+app.use("/api/v1/agent", agentRouter);
+app.use(errorHandler);
 
 
 app.listen(port, () => {
-    console.log(`chat service start to listning on PORT ${port}`)
+    console.log(`agent service start to listning on PORT ${port}`)
 });
