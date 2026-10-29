@@ -27,6 +27,11 @@ app.use("/api/v1/chat", verifyAccessToken, proxy(config.chatServiceUrl, {
     proxyReqOptDecorator: forwardUserHeaders,
 }))
 
+app.use("/api/v1/agent", verifyAccessToken, proxy(config.agentServiceUrl, {
+    proxyReqPathResolver: (req) => `/api/v1/agent${req.url}`,
+    proxyReqOptDecorator: forwardUserHeaders,
+}))
+
 app.get('/', (_req, res) => {
     res.json({ status: 'ok' })
 })

@@ -5,7 +5,7 @@ const required = (name: string): string => {
 };
 
 export const config = {
-  port: Number(process.env.PORT ?? 8002),
+  port: Number(process.env.PORT ?? 8003),
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
