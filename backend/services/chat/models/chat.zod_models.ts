@@ -11,6 +11,10 @@ export const createConversationSchema = z.object({
     title: titleSchema,
 })
 
+export const updateConversationSchema = z.object({
+    title: titleSchema,
+})
+
 // Role is NOT client-supplied. The route always writes "user";
 // the assistant reply is inserted server-side when the AI is wired up.
 export const saveMessageSchema = z.object({

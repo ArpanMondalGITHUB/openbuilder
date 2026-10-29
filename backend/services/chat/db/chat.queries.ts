@@ -20,6 +20,22 @@ export const listUserConversations = async (userId: string) => {
     return rows;
 };
 
+// Updates only if the conversation belongs to this user — returns null otherwise.
+export const updateConversation = async (
+    conversationId: string,
+    userId: string,
+    title: string
+) => {
+    const { rows } = await pool.query(
+        `UPDATE conversations
+         SET title = $3
+         WHERE id = $1 AND user_id = $2
+         RETURNING *`,
+        [conversationId, userId, title]
+    );
+    return rows[0] ?? null;
+};
+
 // Join filters by owner, so a conversationId that isn't yours returns no rows.
 export const listMessages = async (conversationId: string, userId: string) => {
     const { rows } = await pool.query(
