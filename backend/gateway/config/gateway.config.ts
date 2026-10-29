@@ -9,4 +9,5 @@ export const config = {
     jwtSecret: required("JWT_SECRET"),
     authServiceUrl: required("AUTH_SERVICE"),
     chatServiceUrl: required("CHAT_SERVICE"),
+    agentServiceUrl: required("AGENT_SERVICE"),
 }
