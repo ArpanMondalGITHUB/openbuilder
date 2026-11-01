@@ -53,14 +53,48 @@ export const createMessage = async (
     conversationId: string,
     userId: string,
     role: "user" | "assistant",
-    content: string
+    content: string,
+    requestId:string,
+    status: "pending" | "complete" | "failed" = "complete"
 ) => {
     const { rows } = await pool.query(
-        `INSERT INTO messages (conversation_id, role, content)
-         SELECT id, $3, $4 FROM conversations
+        `INSERT INTO messages (conversation_id, role, content, request_id, status)
+         SELECT id, $3, $4, $5, $6 FROM conversations
          WHERE id = $1 AND user_id = $2
          RETURNING *`,
-        [conversationId, userId, role, content]
+        [conversationId, userId, role, content, requestId, status]
     );
     return rows[0] ?? null;
+};
+
+export const findUserMessageByRequestId = async (
+    conversationId: string,
+    userId: string,
+    requestId: string
+) => {
+    const { rows } = await pool.query(
+        `SELECT m.* FROM messages m
+        JOIN conversations c ON c.id = m.conversation_id
+        WHERE m.conversation_id = $1 AND c.user_id = $2
+          AND m.request_id = $3 AND m.role = 'user'
+        LIMIT 1`,
+        [conversationId, userId, requestId]
+    );
+    return rows[0] ?? null;
+};
+
+export const setAttemptStatus = async (
+    conversationId: string,
+    userId: string,
+    requestId: string,
+    status: "pending" | "complete" | "failed"
+) => {
+    const { rowCount } = await pool.query(
+        `UPDATE messages m SET status = $4
+        FROM conversations c
+        WHERE m.conversation_id = c.id AND c.id = $1 AND c.user_id = $2
+          AND m.request_id = $3 AND m.role = 'user'`,
+          [conversationId, userId, requestId, status]
+    );
+    return rowCount ?? 0;
 };

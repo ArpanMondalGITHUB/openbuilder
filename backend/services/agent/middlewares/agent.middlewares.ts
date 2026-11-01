@@ -33,8 +33,11 @@ export const validate = (schema: ZodType, source: "body" | "query" | "params" = 
     }
 
 export const errorHandler = (err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (typeof err === "object" && err !== null && (err as any).status === 413) {
+        return res.status(413).json({ message: "Payload too large" })
+    }
     if (err instanceof ApiError) {
-        return res.status(err.statusCode).json({ message: err.message })
+         return res.status(err.statusCode).json({ message: err.message })
     }
     console.error(err)
     res.status(500).json({ message: "Internal server error" })

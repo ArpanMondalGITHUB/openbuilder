@@ -20,16 +20,21 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
         
         const result = await graph.invoke({ prompt, conversationId, history })
 
-        // Hand the answer back to chat — chat owns the messages table
-        await axios.post(
+        // Hand the answer back to chat — chat owns the messages table.
+        // Keep the row chat saved so we can hand that exact message back to it.
+        const idempotencyKey = req.header("idempotency-key")
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            "x-internal-key": config.internalKey,
+            "x-user-id": userIdOf(req),
+        }
+        if (idempotencyKey) headers["idempotency-key"] = idempotencyKey
+
+        const { data } = await axios.post(
             `${config.chatUrl}/api/v1/chat/conversations/${conversationId}/messages`,
             { content: result.aiResponse },
             {
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-internal-key": config.internalKey,
-                    "x-user-id": userIdOf(req),
-                },
+                headers,
                 timeout: 10_000,
             }
         )
