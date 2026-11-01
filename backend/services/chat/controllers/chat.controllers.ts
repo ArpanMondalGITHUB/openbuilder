@@ -7,6 +7,8 @@ import {
     updateConversation,
 } from "../db/chat.queries"
 import { ApiError } from "../middlewares/chat.middlewares";
+import { config } from "../config/chat.config";
+import { callAgent } from "../helpers/agent.helpers";
 
 const userIdOf = (req: Request): string => {
     const userId = (req as any).user?.id
@@ -70,7 +72,6 @@ export const handleGetMessage = async(req:Request,res:Response,next:NextFunction
     }
 };
 
-// Client only sends user messages; assistant messages are server-generated (AI hookup later).
 export const handleSaveMessage = async(req:Request,res:Response,next:NextFunction) => {
     try {
         
@@ -78,11 +79,19 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
         const conversationId = req.params.conversationId as string
         const { content } = req.body;
 
-        const message = await createMessage(conversationId, userIdOf(req), "user", content);
-        // This would happen when we setup the llm
-        // const reply = await callTheLLM(conversationHistory)
-        // const assistantMessage = await createMessage(conversationId, userId, "assistant", reply)
+        const isAgent = req.header("x-internal-key") === config.internalKey
+        const role = isAgent ? "assistant" : "user"
+
+        const message = await createMessage(conversationId, userIdOf(req), role, content);
+
         if (!message) throw new ApiError(404, "Conversation not found");
+
+        if (role === "user") {
+            await callAgent(conversationId, userIdOf(req), content)
+            const messages = await listMessages(conversationId, userIdOf(req))
+            res.status(201).json({ userMessage: message, assistantMessage: messages[messages.length - 1] })
+            return
+        }
 
         res.status(201).json({message});
     } catch (error) {

@@ -11,4 +11,6 @@ export const config = {
   databaseUrl: required("DATABASE_URL"),
   dbSslInsecure: process.env.DB_SSL_INSECURE === "true",
   redisUrl: process.env.REDIS_URL,
+  internalKey: required("INTERNAL_KEY"),
+  agentServiceUrl: required("AGENT_SERVICE"),
 };

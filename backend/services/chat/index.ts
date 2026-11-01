@@ -4,7 +4,7 @@ import cookieParser from "cookie-parser";
 import { config } from "./config/chat.config";
 import { errorHandler } from "./middlewares/chat.middlewares";
 import chatRouter from "./routes/chat.routes";
-
+import morgan from "morgan"
 const port = config.port
 
 
@@ -13,7 +13,7 @@ const app = express();
 app.set("trust proxy", 1);
 app.use(express.json());
 app.use(cookieParser());
-
+app.use(morgan("dev"))
 
 
 app.get('/', (req, res) => {
