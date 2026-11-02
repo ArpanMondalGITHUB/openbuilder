@@ -30,7 +30,7 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
         }
         if (idempotencyKey) headers["idempotency-key"] = idempotencyKey
 
-        const { data } = await axios.post(
+        await axios.post(
             `${config.chatUrl}/api/v1/chat/conversations/${conversationId}/messages`,
             { content: result.aiResponse },
             {

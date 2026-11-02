@@ -100,6 +100,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
 
         if (role === "assistant") {
             const message = await createMessage(conversationId, userId, role, content, requestId, "complete")
+            if (!message) throw new ApiError(404, "Conversation not found")
             await setAttemptStatus(conversationId, userId, requestId, "complete")
             return res.status(201).json({ message })
         }
@@ -119,13 +120,17 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
                         // failed — run the agent again on the same attempt
             await setAttemptStatus(conversationId, userId, requestId, "pending")
             const history = (await listMessages(conversationId, userId)).filter(m => m.id !== existing.id)
-            callAgent(conversationId, userId, content, history, requestId)
+            callAgent(conversationId, userId, content, history, requestId).catch( async (error) => {
+                if ((error as any)?.code !== "ECONNABORTED") {
+                    await setAttemptStatus(conversationId, userId, requestId, "failed").catch(error)
+                }
+            })
             return res.status(202).json({ userMessage: existing, status: "pending", requestId })
         }
 
                 // read the conversation so far BEFORE saving the new message,
         // otherwise the agent would see the current prompt twice
-        const history = await listMessages(conversationId, userId)
+        const history = (await listMessages(conversationId, userId)).filter(m => m.status === "complete").slice(-20)
 
         let message
         try {
@@ -153,7 +158,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
         }
 
         const messages = await listMessages(conversationId, userId)
-        const reply = messages.find(m => m.request_id === requestId) ?? null
+        const reply = messages.find(m => m.role === "assistant" && m.request_id === requestId) ?? null
         res.status(201).json({ userMessage: message, assistantMessage: reply, status: "complete", requestId })
 
     } catch (error) {
