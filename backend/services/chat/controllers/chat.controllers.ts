@@ -121,8 +121,9 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
             await setAttemptStatus(conversationId, userId, requestId, "pending")
             const history = (await listMessages(conversationId, userId)).filter(m => m.id !== existing.id)
             callAgent(conversationId, userId, content, history, requestId).catch( async (error) => {
+                console.error("agent retry failed", error)
                 if ((error as any)?.code !== "ECONNABORTED") {
-                    await setAttemptStatus(conversationId, userId, requestId, "failed").catch(error)
+                    await setAttemptStatus(conversationId, userId, requestId, "failed").catch(console.error)
                 }
             })
             return res.status(202).json({ userMessage: existing, status: "pending", requestId })
