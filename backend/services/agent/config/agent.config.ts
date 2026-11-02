@@ -9,6 +9,8 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
+  chatUrl:required("CHAT_SERVICE"),
+  internalKey: required("INTERNAL_KEY"),
   dbSslInsecure: process.env.DB_SSL_INSECURE === "true",
   redisUrl: process.env.REDIS_URL,
 };
