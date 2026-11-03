@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Menu, X } from "lucide-react"
+import { Link } from "react-router-dom"
 
 const links = [
     { label: "Product", href: "#agents" },
@@ -45,13 +46,13 @@ export function Nav() {
                 </ul>
 
                 <div className="hidden items-center gap-3 md:flex">
-                    <a
-                        href="#pricing"
+                    <Link
+                        to="/auth"
                         className="rounded-full px-4 py-2 text-sm font-medium text-sage-900 transition-colors hover:text-sage-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage-700"
                     >
                         Sign in
-                    </a>
-                    <a href="#pricing" className="btn-pill-dark">
+                    </Link>
+                    <a href="#" className="btn-pill-dark">
                         Start building
                     </a>
                 </div>

@@ -11,6 +11,7 @@ const OUT = "src/assets/optimized"
 const JOBS = {
     "chris-barbalis-S71dIpHxep4-unsplash.jpg": ["hero-hills", 1920],
     "qingbao-meng-01_igFr7hd4-unsplash (1).jpg": ["agents-hill",1920],
+    "1900x1900-000000-80-0-0.jpg": ["auth-portal", 900],
     "matthias-fiesel-mQAHpJ4SBA8-unsplash.jpg": ["cta-hills", 1600],
     "pexels-teobadini-4112378.jpg": ["pricing-hills", 900],
     "eugene-chystiakov-5qM4nvkRF0k-unsplash.jpg": ["chair", 900],
