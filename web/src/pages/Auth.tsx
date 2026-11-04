@@ -1,11 +1,14 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useDispatch, useSelector } from "react-redux"
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Sparkles } from "lucide-react"
 import authPortal from "../assets/optimized/auth-portal.webp"
 import openaiLogo from "../assets/openai.png"
 import anthropicLogo from "../assets/anthropic.png"
 import geminiLogo from "../assets/gemini-color.png"
-import { signIn, signUp, storeSession, signInSchema, signUpSchema, type SignIn, type SignUp } from "../lib/auth"
+import { checkCurrentUser, clearError, login, signup } from "../store/slice/authSlice"
+import type { AppDispatch, RootState } from "../store/store"
+import { signInSchema, signUpSchema } from "../models/auth.zod_models"
 
 type Mode = "signin" | "signup"
 type FieldErrors = Partial<Record<"name" | "email" | "password", string>>
@@ -18,63 +21,73 @@ const logos = [
 
 export default function Auth() {
     const navigate = useNavigate()
+    const dispatch = useDispatch<AppDispatch>()
+
+    const isAuthenticated = useSelector((s: RootState) => s.auth.isAuthenticated)
+    const authChecked = useSelector((s: RootState) => s.auth.authChecked)
+    const isLoading = useSelector((s: RootState) => s.auth.isLoading)
+    const formError = useSelector((s: RootState) => s.auth.error)
+
     const [mode, setMode] = useState<Mode>("signin")
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [showPassword, setShowPassword] = useState(false)
     const [errors, setErrors] = useState<FieldErrors>({})
-    const [formError, setFormError] = useState("")
-    const [submitting, setSubmitting] = useState(false)
+
+    // isLoading is also true while we check the session on load — only treat it
+    // as "busy" once that first check is done
+    const busy = isLoading && authChecked
+
+    useEffect(() => {
+        dispatch(checkCurrentUser())
+    }, [dispatch])
+
+    useEffect(() => {
+        if (authChecked && isAuthenticated) navigate("/home", { replace: true })
+    }, [authChecked, isAuthenticated, navigate])
 
     const switchMode = (next: Mode) => {
         setMode(next)
         setErrors({})
-        setFormError("")
+        dispatch(clearError())
         setName("") // the name field only belongs to signup
+    }
+
+    const setFieldErrors = (issues: { path: PropertyKey[]; message: string }[]) => {
+        const next: FieldErrors = {}
+        for (const issue of issues) {
+            const field = issue.path[0] as keyof FieldErrors
+            if (field && !next[field]) next[field] = issue.message
+        }
+        setErrors(next)
     }
 
     const onSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setErrors({})
-        setFormError("")
+        dispatch(clearError())
 
-        const parsed =
-            mode === "signup"
-                ? signUpSchema.safeParse({ name, email, password })
-                : signInSchema.safeParse({ email, password })
-        if (!parsed.success) {
-            const next: FieldErrors = {}
-            for (const issue of parsed.error.issues) {
-                const field = issue.path[0] as keyof FieldErrors
-                if (field && !next[field]) next[field] = issue.message
-            }
-            setErrors(next)
-            return
-        }
-
-        setSubmitting(true)
         try {
-            const data =
-                mode === "signup"
-                    ? await signUp(parsed.data as SignUp)
-                    : await signIn(parsed.data as SignIn)
-            storeSession(data)
-            navigate("/")
-        } catch (err: any) {
-            const payload = err?.response?.data
-            if (payload?.errors?.length) {
-                const next: FieldErrors = {}
-                for (const item of payload.errors) {
-                    const field = item.field as keyof FieldErrors
-                    if (field && !next[field]) next[field] = item.message
+            if (mode === "signup") {
+                const parsed = signUpSchema.safeParse({ name, email, password })
+                if (!parsed.success) {
+                    setFieldErrors(parsed.error.issues)
+                    return
                 }
-                setErrors(next)
+                await dispatch(signup(parsed.data)).unwrap()
             } else {
-                setFormError(payload?.message ?? "Something went wrong. Try again.")
+                const parsed = signInSchema.safeParse({ email, password })
+                if (!parsed.success) {
+                    setFieldErrors(parsed.error.issues)
+                    return
+                }
+                await dispatch(login(parsed.data)).unwrap()
             }
-        } finally {
-            setSubmitting(false)
+            navigate("/home")
+        } catch (err) {
+            // the slice already stores the message; nothing to do here
+            void err
         }
     }
 
@@ -85,7 +98,7 @@ export default function Auth() {
         <div className="min-h-screen bg-sage-50">
             <header className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
                 <Link
-                    to="#"
+                    to="/"
                     className="text-lg font-bold tracking-tight text-sage-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sage-700"
                 >
                     openbuilder
@@ -248,10 +261,10 @@ export default function Auth() {
 
                         <button
                             type="submit"
-                            disabled={submitting}
+                            disabled={busy}
                             className="btn-lime w-full disabled:cursor-not-allowed disabled:opacity-70"
                         >
-                            {submitting ? (
+                            {busy ? (
                                 <>
                                     <Loader2 className="size-4 animate-spin" aria-hidden="true" />
                                     {mode === "signin" ? "Signing in…" : "Creating account…"}
