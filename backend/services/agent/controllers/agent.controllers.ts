@@ -42,10 +42,10 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
             }
         )
 
-        await addToMemory(conversationId, [
+        await addToMemory(conversationId, userId, [
             { role: "user", content: prompt },
             { role: "assistant", content: result.aiResponse },
-        ])
+        ], idempotencyKey)
 
         res.status(200).json({ result })
     } catch (error) {

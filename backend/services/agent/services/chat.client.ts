@@ -13,9 +13,9 @@ export const fetchMessages = async (conversationId:string,userId:string) => {
         )
         return (data.messages ?? [])
             .filter((m:any)=>m.status == "complete")
-            .map((m:any)=>({role:m.role,content:m.content}))
+            .map((m:any)=>({role:m.role,content:m.content,requestId:m.request_id ?? undefined}))
     } catch (error) {
         console.error("fetch message failed",error)
-        return[]
+        throw error
     }
 }
