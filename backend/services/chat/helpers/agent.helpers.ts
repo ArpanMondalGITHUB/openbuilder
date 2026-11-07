@@ -6,11 +6,10 @@ export const callAgent = async (
     conversationId: string,
     userId: string,
     prompt: string,
-    history: { role: string; content: string }[],
     requestId: string
 ) => {
     const {data} = await axios.post(`${config.agentServiceUrl}/api/v1/agent/conversations/${conversationId}`,
-        {prompt, history},
+        {prompt},
         {
             headers:{
                 "x-user-id": userId,

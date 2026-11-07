@@ -10,7 +10,6 @@ export type ChatTurn = z.infer<typeof chatTurnSchema>;
 
 export const invokeGraphSchema = z.object({
     prompt: promptSchema,
-    history: z.array(chatTurnSchema).default([]),
 })
 
 export const conversationIdParamSchema = z.object({
