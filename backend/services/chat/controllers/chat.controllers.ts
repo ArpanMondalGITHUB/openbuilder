@@ -119,8 +119,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
 
                         // failed — run the agent again on the same attempt
             await setAttemptStatus(conversationId, userId, requestId, "pending")
-            const history = (await listMessages(conversationId, userId)).filter(m => m.id !== existing.id)
-            callAgent(conversationId, userId, content, history, requestId).catch( async (error) => {
+            callAgent(conversationId, userId, content, requestId).catch( async (error) => {
                 console.error("agent retry failed", error)
                 if ((error as any)?.code !== "ECONNABORTED") {
                     await setAttemptStatus(conversationId, userId, requestId, "failed").catch(console.error)
@@ -128,10 +127,6 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
             })
             return res.status(202).json({ userMessage: existing, status: "pending", requestId })
         }
-
-                // read the conversation so far BEFORE saving the new message,
-        // otherwise the agent would see the current prompt twice
-        const history = (await listMessages(conversationId, userId)).filter(m => m.status === "complete").slice(-20)
 
         let message
         try {
@@ -149,7 +144,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
 
         // a failure marks the attempt failed, so a retry knows to run the agent again
         try {
-            await callAgent(conversationId, userId, content, history, requestId)
+            await callAgent(conversationId, userId, content, requestId)
         } catch (error) {
             // a timeout does not mean the agent died — it may still be running and will call back
             if ((error as any)?.code !== "ECONNABORTED") {

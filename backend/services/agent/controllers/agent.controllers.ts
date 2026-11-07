@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express"
 import { graph } from "../graph/graph"
 import { ApiError } from "../middlewares/agent.middlewares"
 import { config } from "../config/agent.config";
-
+import { getMemory, addToMemory } from "../config/memory"
 
 const userIdOf = (req: Request): string => {
     const userId = (req as any).user?.id
@@ -14,9 +14,12 @@ const userIdOf = (req: Request): string => {
 export const handleInvokeGraph = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const conversationId = req.params.conversationId as string
-        const { prompt,history } = req.body
+        const { prompt } = req.body
         if (!conversationId) throw new ApiError(400,"ConversationId is required");
         if (!prompt) throw new ApiError(400, "Prompt is required");
+
+        const userId = userIdOf(req)
+        const history = await getMemory(conversationId, userId)
         
         const result = await graph.invoke({ prompt, conversationId, history })
 
@@ -26,7 +29,7 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
         const headers: Record<string, string> = {
             "Content-Type": "application/json",
             "x-internal-key": config.internalKey,
-            "x-user-id": userIdOf(req),
+            "x-user-id": userId,
         }
         if (idempotencyKey) headers["idempotency-key"] = idempotencyKey
 
@@ -38,6 +41,11 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
                 timeout: 10_000,
             }
         )
+
+        await addToMemory(conversationId, [
+            { role: "user", content: prompt },
+            { role: "assistant", content: result.aiResponse },
+        ])
 
         res.status(200).json({ result })
     } catch (error) {
