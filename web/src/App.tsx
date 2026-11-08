@@ -2,6 +2,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import Landing from "./pages/Landing"
 import Auth from "./pages/Auth"
 import Home from "./pages/Home"
+import { ChatRoute } from "./pages/Chat"
+import AppShell from "./components/home/AppShell"
 
 function App() {
     return (
@@ -9,7 +11,11 @@ function App() {
             <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/home" element={<Home />} />
+                {/* signed-in pages share the sidebar + auth gate */}
+                <Route element={<AppShell />}>
+                    <Route path="/home" element={<Home />} />
+                    <Route path="/chat/:conversationId" element={<ChatRoute />} />
+                </Route>
             </Routes>
         </BrowserRouter>
     )

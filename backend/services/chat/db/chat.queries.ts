@@ -87,7 +87,7 @@ export const setAttemptStatus = async (
     conversationId: string,
     userId: string,
     requestId: string,
-    status: "pending" | "complete" | "failed"
+    status: "pending" | "complete" | "failed" | "cancelled"
 ) => {
     const { rowCount } = await pool.query(
         `UPDATE messages m SET status = $4
@@ -95,6 +95,23 @@ export const setAttemptStatus = async (
         WHERE m.conversation_id = c.id AND c.id = $1 AND c.user_id = $2
           AND m.request_id = $3 AND m.role = 'user'`,
           [conversationId, userId, requestId, status]
+    );
+    return rowCount ?? 0;
+};
+
+// Marks the attempt failed only while it is still pending, so a failure that
+// arrives after the user pressed Stop doesn't overwrite "cancelled".
+export const failAttemptIfPending = async (
+    conversationId: string,
+    userId: string,
+    requestId: string
+) => {
+    const { rowCount } = await pool.query(
+        `UPDATE messages m SET status = 'failed'
+        FROM conversations c
+        WHERE m.conversation_id = c.id AND c.id = $1 AND c.user_id = $2
+          AND m.request_id = $3 AND m.role = 'user' AND m.status = 'pending'`,
+        [conversationId, userId, requestId]
     );
     return rowCount ?? 0;
 };
