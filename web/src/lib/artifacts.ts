@@ -131,7 +131,8 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
         files.length > 0
             ? {
                   id: messageId,
-                  title: files.length === 1 ? files[0].path.split("/").pop()! : `${files.length} files`,
+                  // "ProfileCard.tsx" or "ProfileCard.tsx +2"
+                  title: `${files[0].path.split("/").pop()!}${files.length > 1 ? ` +${files.length - 1}` : ""}`,
                   files,
               }
             : null
