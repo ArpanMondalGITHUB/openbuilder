@@ -13,6 +13,6 @@ export const config = {
   internalKey: required("INTERNAL_KEY"),
   dbSslInsecure: process.env.DB_SSL_INSECURE === "true",
   redisUrl: process.env.REDIS_URL,
-  tavily:required("TAVILY_API_KEY"),
-  openrouter:required("OPENROUTER_API_KEY")
+  tavily:process.env.TAVILY_API_KEY,
+  openrouter:process.env.OPENROUTER_API_KEY
 };
