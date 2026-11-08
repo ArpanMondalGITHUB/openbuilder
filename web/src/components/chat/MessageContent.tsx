@@ -1,5 +1,6 @@
 import { ChevronRight, FileCode2 } from "lucide-react"
 import type { ParsedMessage } from "../../lib/artifacts"
+import Markdown from "./Markdown"
 
 interface MessageContentProps {
     parsed: ParsedMessage
@@ -15,13 +16,7 @@ export default function MessageContent({ parsed, isOpen, onOpenFile }: MessageCo
     return (
         <div className="min-w-0 flex-1 space-y-3 leading-relaxed text-foreground">
             {segments.map((s, i) => {
-                if (s.type === "text") {
-                    return (
-                        <p key={i} className="whitespace-pre-wrap">
-                            {s.text}
-                        </p>
-                    )
-                }
+                if (s.type === "text") return <Markdown key={i} text={s.text} />
                 if (s.type === "code") {
                     return (
                         <pre key={i} className="overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-[13px]">

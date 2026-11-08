@@ -169,6 +169,49 @@
   .icon-btn {
     @apply grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring;
     }
+  /* assistant replies rendered from markdown (components/chat/Markdown.tsx) */
+  .chat-md {
+    @apply space-y-3 leading-relaxed break-words;
+    }
+  .chat-md a {
+    @apply text-sage-300 underline decoration-sage-300/40 underline-offset-2 transition-colors hover:decoration-sage-300;
+    }
+  .chat-md strong {
+    @apply font-semibold;
+    }
+  .chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 {
+    @apply pt-2 font-semibold tracking-tight;
+    }
+  .chat-md h1 { @apply text-xl; }
+  .chat-md h2 { @apply text-lg; }
+  .chat-md h3, .chat-md h4 { @apply text-base; }
+  .chat-md ul {
+    @apply list-disc space-y-1 pl-6;
+    }
+  .chat-md ol {
+    @apply list-decimal space-y-1 pl-6;
+    }
+  .chat-md li > ul, .chat-md li > ol {
+    @apply mt-1;
+    }
+  .chat-md code {
+    @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em];
+    }
+  .chat-md blockquote {
+    @apply border-l-2 border-border pl-4 text-muted-foreground;
+    }
+  .chat-md hr {
+    @apply border-border;
+    }
+  .chat-md table {
+    @apply block w-full overflow-x-auto text-sm;
+    }
+  .chat-md th, .chat-md td {
+    @apply border border-border px-3 py-1.5 text-left;
+    }
+  .chat-md th {
+    @apply bg-muted font-medium;
+    }
   .surface-card {
     @apply rounded-3xl border border-sage-900/8 bg-white shadow-[0_1px_2px_oklch(0.235_0.042_140/0.04),0_12px_32px_-16px_oklch(0.235_0.042_140/0.16)];
     }
