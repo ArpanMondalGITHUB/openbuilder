@@ -22,7 +22,13 @@ export type Segment =
 export interface ParsedMessage {
     segments: Segment[]
     artifact: Artifact | null
+    // The whole reply as ONE markdown document, every code/file segment replaced
+    // by a ```oa-segment placeholder whose body is the segment index. Rendering it
+    // in a single pass keeps lists continuous across code blocks.
+    markdown: string
 }
+
+export const SEGMENT_PLACEHOLDER_LANG = "oa-segment"
 
 const FENCE = /```([^\n`]*)\n([\s\S]*?)```/g
 // blocks shorter than this without a path stay inline (e.g. `npm i zod`)
@@ -60,14 +66,27 @@ const PATH_HEADING = /(?:^|\n)[ \t]*(?:#+\s*)?(?:\*\*|`)?([\w@.\-/]+\.\w+)(?:\*\
 export function parseMessage(messageId: string, content: string): ParsedMessage {
     const segments: Segment[] = []
     const files: ArtifactFile[] = []
+    let markdown = ""
     let last = 0
 
     for (const m of content.matchAll(FENCE)) {
-        let before = content.slice(last, m.index)
+        const rawBefore = content.slice(last, m.index)
+        let before = rawBefore
+        // a fence nested in a list item is indented; the placeholder keeps that
+        // indent (so the list continues) and the code loses it
+        const indent = rawBefore.match(/(?:^|\n)([ \t]*)$/)?.[1] ?? ""
         const info = parseInfo(m[1])
         const language = info.language
         let path = info.path
-        let code = m[2].replace(/\n$/, "")
+        // also drops the indent an indented closing fence leaves on the last line
+        let code = m[2].replace(/\n[ \t]*$/, "")
+        if (indent) {
+            code = code
+                .split("\n")
+                .map((line) => (line.startsWith(indent) ? line.slice(indent.length) : line.trimStart()))
+                .join("\n")
+        }
+        let headingRemoved = false
 
         if (!path) {
             const firstLine = code.split("\n", 1)[0]
@@ -83,6 +102,7 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
             if (heading) {
                 path = heading[1]
                 before = before.slice(0, heading.index)
+                headingRemoved = true
             }
         }
 
@@ -96,11 +116,16 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
         } else {
             segments.push({ type: "code", language, code })
         }
+        const fence = "```"
+        const placeholder = `${fence}${SEGMENT_PLACEHOLDER_LANG}\n${indent}${segments.length - 1}\n${indent}${fence}`
+        // the path heading became the file name, so it is dropped from the text
+        markdown += (headingRemoved ? `${before}\n\n${indent}` : rawBefore) + placeholder
         last = m.index! + m[0].length
     }
 
     const rest = content.slice(last).trim()
     if (rest) segments.push({ type: "text", text: rest })
+    markdown += content.slice(last)
 
     const artifact =
         files.length > 0
@@ -111,7 +136,7 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
               }
             : null
 
-    return { segments, artifact }
+    return { segments, artifact, markdown }
 }
 
 export const artifactOf = (m: { id: string; content: string }) => parseMessage(m.id, m.content).artifact
