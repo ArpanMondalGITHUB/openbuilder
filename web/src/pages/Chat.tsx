@@ -163,7 +163,8 @@ function Chat({ conversationId }: { conversationId: string }) {
     useEffect(() => {
         if (!waiting) return
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") stop()
+            // defaultPrevented: Esc already closed the full-screen artifact panel
+            if (e.key === "Escape" && !e.defaultPrevented) stop()
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
