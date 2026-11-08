@@ -162,6 +162,13 @@
   .eyebrow {
     @apply inline-block rounded-full border border-sage-900/10 bg-white/70 px-3 py-1 text-[11px] font-medium tracking-[0.14em] text-sage-700 uppercase backdrop-blur;
     }
+  /* app shell (home page) */
+  .side-item {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-sidebar-foreground/90 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-2 focus-visible:outline-sidebar-ring;
+    }
+  .icon-btn {
+    @apply grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring;
+    }
   .surface-card {
     @apply rounded-3xl border border-sage-900/8 bg-white shadow-[0_1px_2px_oklch(0.235_0.042_140/0.04),0_12px_32px_-16px_oklch(0.235_0.042_140/0.16)];
     }

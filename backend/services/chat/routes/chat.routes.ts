@@ -1,6 +1,7 @@
 import { Router } from "express"
 import { requireGatewayUser, validate } from "../middlewares/chat.middlewares"
 import {
+    handleCancelMessage,
     handleCreateConversation,
     handleGetConversation,
     handleGetMessage,
@@ -9,6 +10,7 @@ import {
 } from "../controllers/chat.controllers"
 
 import {
+    cancelMessageParamSchema,
     conversationIdParamSchema,
     createConversationSchema,
     saveMessageSchema,
@@ -23,6 +25,8 @@ router.post("/conversations", validate(createConversationSchema), handleCreateCo
 router.get("/conversations", handleGetConversation)
 router.get("/conversations/:conversationId/messages", validate(conversationIdParamSchema, "params"), handleGetMessage)
 router.post("/conversations/:conversationId/messages", validate(conversationIdParamSchema, "params"), validate(saveMessageSchema), handleSaveMessage)
+// Stop button: marks the attempt cancelled and aborts the agent run
+router.post("/conversations/:conversationId/messages/:requestId/cancel", validate(cancelMessageParamSchema, "params"), handleCancelMessage)
 router.patch("/conversations/:conversationId", validate(conversationIdParamSchema, "params"), validate(updateConversationSchema), handleUpdateConversation)
 
 export default router

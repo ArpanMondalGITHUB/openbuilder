@@ -25,3 +25,11 @@ export const callAgent = async (
     const { result, assistantMessage } = data;
     return { aiResponse: result?.aiResponse as string, assistantMessage };
 };
+
+// Best effort: tells the agent to abort the run for this attempt.
+export const cancelAgent = (conversationId: string, userId: string, requestId: string) =>
+    axios.post(
+        `${config.agentServiceUrl}/api/v1/agent/conversations/${conversationId}/cancel`,
+        {},
+        { headers: { "x-user-id": userId, "idempotency-key": requestId }, timeout: 5_000 }
+    );

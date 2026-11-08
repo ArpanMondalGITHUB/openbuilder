@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import {
     createConversation,
     createMessage,
+    failAttemptIfPending,
     findUserMessageByRequestId,
     listMessages,
     listUserConversations,
@@ -10,7 +11,7 @@ import {
 } from "../db/chat.queries"
 import { ApiError } from "../middlewares/chat.middlewares";
 import { config } from "../config/chat.config";
-import { callAgent } from "../helpers/agent.helpers";
+import { callAgent, cancelAgent } from "../helpers/agent.helpers";
 import { idempotencyKeySchema } from "../models/chat.zod_models";
 import { randomUUID } from "crypto";
 
@@ -99,6 +100,11 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
         const requestId = rawKey || randomUUID()
 
         if (role === "assistant") {
+            // the user pressed Stop — drop the late reply (the agent treats 409 as cancelled)
+            const attempt = await findUserMessageByRequestId(conversationId, userId, requestId)
+            if (attempt?.status === "cancelled") {
+                return res.status(409).json({ message: "Request was cancelled" })
+            }
             const message = await createMessage(conversationId, userId, role, content, requestId, "complete")
             if (!message) throw new ApiError(404, "Conversation not found")
             await setAttemptStatus(conversationId, userId, requestId, "complete")
@@ -122,7 +128,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
             callAgent(conversationId, userId, content, requestId).catch( async (error) => {
                 console.error("agent retry failed", error)
                 if ((error as any)?.code !== "ECONNABORTED") {
-                    await setAttemptStatus(conversationId, userId, requestId, "failed").catch(console.error)
+                    await failAttemptIfPending(conversationId, userId, requestId).catch(console.error)
                 }
             })
             return res.status(202).json({ userMessage: existing, status: "pending", requestId })
@@ -146,9 +152,13 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
         try {
             await callAgent(conversationId, userId, content, requestId)
         } catch (error) {
+            // the agent answers 499 when the user stopped this attempt
+            if ((error as any)?.response?.status === 499) {
+                return res.status(499).json({ userMessage: message, status: "cancelled", requestId })
+            }
             // a timeout does not mean the agent died — it may still be running and will call back
             if ((error as any)?.code !== "ECONNABORTED") {
-                await setAttemptStatus(conversationId, userId, requestId, "failed")
+                await failAttemptIfPending(conversationId, userId, requestId)
             }
             throw error
         }
@@ -161,4 +171,28 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
         next(error);
     }
     
+};
+
+export const handleCancelMessage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const conversationId = req.params.conversationId as string
+        const requestId = req.params.requestId as string
+        const userId = userIdOf(req)
+
+        const attempt = await findUserMessageByRequestId(conversationId, userId, requestId)
+        if (!attempt) throw new ApiError(404, "Message not found")
+
+        // already answered or failed — nothing to stop
+        if (attempt.status !== "pending") {
+            return res.json({ status: attempt.status, requestId })
+        }
+
+        await setAttemptStatus(conversationId, userId, requestId, "cancelled")
+        cancelAgent(conversationId, userId, requestId).catch((error) =>
+            console.error("agent cancel failed", error?.message ?? error)
+        )
+        res.json({ status: "cancelled", requestId })
+    } catch (error) {
+        next(error)
+    }
 };

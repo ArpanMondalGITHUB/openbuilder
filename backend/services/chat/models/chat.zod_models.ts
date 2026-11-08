@@ -27,6 +27,11 @@ export const conversationIdParamSchema = z.object({
     conversationId: conversationIdSchema,
 })
 
+export const cancelMessageParamSchema = z.object({
+    conversationId: conversationIdSchema,
+    requestId: idempotencyKeySchema,
+})
+
 // Types
 export type CreateConversation = z.infer<typeof createConversationSchema>
 export type SendMessage = z.infer<typeof saveMessageSchema>
