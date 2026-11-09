@@ -1,6 +1,9 @@
 // Turns an assistant reply (markdown) into text segments plus one artifact
 // holding every code file in that reply. The coding agent writes the file path
 // after the language tag:  ```tsx src/components/Card.tsx
+// Images, PDFs and decks the agents upload to S3 become "asset" segments.
+
+import { extractGeneratedFiles, type GeneratedFile } from "./generatedFiles"
 
 export interface ArtifactFile {
     path: string
@@ -18,6 +21,7 @@ export type Segment =
     | { type: "text"; text: string }
     | { type: "code"; language: string; code: string } // short snippet, kept inline
     | { type: "file"; index: number } // points into artifact.files
+    | { type: "asset"; file: GeneratedFile } // generated image / pdf / pptx
 
 export interface ParsedMessage {
     segments: Segment[]
@@ -68,6 +72,14 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
     const files: ArtifactFile[] = []
     let markdown = ""
     let last = 0
+    const fence = "```"
+
+    // agent files in plain text (never inside a code block) become their own segments
+    const withAssets = (text: string) =>
+        extractGeneratedFiles(text, (file) => {
+            segments.push({ type: "asset", file })
+            return `${fence}${SEGMENT_PLACEHOLDER_LANG}\n${segments.length - 1}\n${fence}`
+        })
 
     for (const m of content.matchAll(FENCE)) {
         const rawBefore = content.slice(last, m.index)
@@ -116,7 +128,6 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
         } else {
             segments.push({ type: "code", language, code })
         }
-        const fence = "```"
         const placeholder = `${fence}${SEGMENT_PLACEHOLDER_LANG}\n${indent}${segments.length - 1}\n${indent}${fence}`
         // the path heading became the file name, so it is dropped from the text
         markdown += (headingRemoved ? `${before}\n\n${indent}` : rawBefore) + placeholder
@@ -125,7 +136,7 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
 
     const rest = content.slice(last).trim()
     if (rest) segments.push({ type: "text", text: rest })
-    markdown += content.slice(last)
+    markdown += withAssets(content.slice(last))
 
     const artifact =
         files.length > 0

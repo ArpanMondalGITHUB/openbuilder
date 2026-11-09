@@ -2,6 +2,8 @@ import { useCallback } from "react"
 import { ChevronRight, FileCode2 } from "lucide-react"
 import type { ParsedMessage } from "../../lib/artifacts"
 import Markdown from "./Markdown"
+import GeneratedImage from "./GeneratedImage"
+import GeneratedFileCard from "./GeneratedFileCard"
 
 interface MessageContentProps {
     parsed: ParsedMessage
@@ -20,6 +22,9 @@ export default function MessageContent({ parsed, isOpen, onOpenFile }: MessageCo
         (i: number) => {
             const s = segments[i]
             if (!s || s.type === "text") return null
+            if (s.type === "asset") {
+                return s.file.kind === "image" ? <GeneratedImage file={s.file} /> : <GeneratedFileCard file={s.file} />
+            }
             if (s.type === "code") {
                 return (
                     <pre className="overflow-x-auto rounded-lg bg-muted px-3 py-2 font-mono text-[13px]">

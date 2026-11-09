@@ -1,6 +1,6 @@
 import { Router } from "express"
 import { requireGatewayUser, validate } from "../middlewares/agent.middlewares"
-import { handleCancelGraph, handleInvokeGraph } from "../controllers/agent.controllers"
+import { handleCancelGraph, handleGetFileUrl, handleInvokeGraph } from "../controllers/agent.controllers"
 import { conversationIdParamSchema, invokeGraphSchema } from "../models/agent.zod_models"
 const router = Router()
 router.use(requireGatewayUser)
@@ -9,6 +9,9 @@ router.post("/conversations/:conversationId",
     validate(conversationIdParamSchema, "params"),
     validate(invokeGraphSchema),
     handleInvokeGraph)
+
+// key = <userId>/<conversationId>/<uuid>.<ext>, as built by services/storage.ts
+router.get("/files/*key", handleGetFileUrl)
 
 // requestId travels in the Idempotency-Key header, same as on invoke
 router.post("/conversations/:conversationId/cancel",

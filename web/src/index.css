@@ -97,6 +97,12 @@
     --sidebar-ring: oklch(0.615 0.112 136);
 }
 
+/* loading placeholder for generated images */
+@keyframes shimmer {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+}
+
 .dark {
     /* native scrollbars, form controls and selection follow the dark theme */
     color-scheme: dark;

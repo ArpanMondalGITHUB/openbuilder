@@ -11,7 +11,20 @@ const key = (conversationId: string) => `memory:${conversationId}`
 // re-appending the same pair when a request is retried
 type StoredTurn = ChatTurn & { requestId?: string }
 
-const toChatTurn = ({ role, content }: StoredTurn): ChatTurn => ({ role, content })
+// Generated files appear in replies as presigned S3 links (~1.5 KB each). The model
+// never needs the link, only what was made, so shorten them before they become history:
+//   ![a red fox](https://...X-Amz-Signature=...)          -> [generated image: a red fox]
+//   **[Q3-Report.pdf](https://...X-Amz-Signature=...)**   -> **[generated file: Q3-Report.pdf]**
+// Chat keeps the full link (the frontend renders the cards from it); this only
+// changes what reaches the model, on both the Redis and the chat-service path.
+const SIGNED_LINK = /(!?)\[([^\]\n]*)\]\(https:\/\/[^)\s]*X-Amz-Signature=[^)\s]*\)/g
+
+export const compactLinks = (content: string) =>
+    content.replace(SIGNED_LINK, (_, bang: string, label: string) =>
+        bang ? `[generated image: ${label}]` : `[generated file: ${label}]`
+    )
+
+const toChatTurn = ({ role, content }: StoredTurn): ChatTurn => ({ role, content: compactLinks(content) })
 
 const isChatTurn = (m: any): m is ChatTurn =>
     (m?.role === "user" || m?.role === "assistant") && typeof m?.content === "string"
