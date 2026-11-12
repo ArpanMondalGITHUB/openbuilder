@@ -18,7 +18,7 @@ export const config = {
   // S3 is optional so chat/search keep working without it; storage fails only when used.
   // Credentials come from the SDK's default chain (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
   // locally, an IAM role in production), so they aren't read here.
-  awsRegion: process.env.BEDROCK_AWS_REGION,
+  awsRegion: process.env.AWS_REGION,
   bucketName: process.env.AWS_BUCKET_NAME,
   googleApiKey: process.env.GOOGLE_API_KEY,
   imageModel: process.env.IMAGE_MODEL ?? "gemini-2.5-flash-image",

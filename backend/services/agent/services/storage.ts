@@ -53,6 +53,18 @@ export interface DispositionOverride {
   fileName?: string; // must already be header-safe (see safeFileName)
 }
 
+// A presigned URL stops working when the credentials that signed it expire, whatever
+// X-Amz-Expires says. With temporary role credentials (ECS/EKS task role, SSO, AssumeRole)
+// that can be well under 7 days, so the link is capped to what the credentials have left,
+// keeping X-Amz-Expires truthful for clients that cache links by it.
+const CREDENTIAL_MARGIN_SECONDS = 60;
+
+const credentialSecondsLeft = async (s3: ReturnType<typeof getS3>["s3"]): Promise<number> => {
+  const { expiration } = await s3.config.credentials();
+  if (!expiration) return Infinity; // long-lived keys
+  return Math.floor((expiration.getTime() - Date.now()) / 1000) - CREDENTIAL_MARGIN_SECONDS;
+};
+
 // Callers must check ownership (isOwnedBy) before signing a key that came from a request.
 export const getSignedDownloadUrl = async (
   key: string,
@@ -61,7 +73,10 @@ export const getSignedDownloadUrl = async (
 ): Promise<string> => {
   if (!key) throw new Error("Missing file key");
   const { s3, bucket } = getS3();
-  const seconds = Math.min(Math.max(Math.floor(expiresIn), 1), MAX_EXPIRES_IN);
+  const seconds = Math.max(
+    Math.min(Math.floor(expiresIn), MAX_EXPIRES_IN, await credentialSecondsLeft(s3)),
+    1
+  );
   const ResponseContentDisposition = disposition
     ? `${disposition.type}${disposition.fileName ? `; filename="${disposition.fileName}"` : ""}`
     : undefined;
@@ -71,7 +86,7 @@ export const getSignedDownloadUrl = async (
 };
 
 // Uploads a generated file and returns it with a link for the chat message.
-// The link lasts as long as presigning allows (7 days); after that the client
+// The link lasts up to 7 days (less with temporary credentials, see getSignedDownloadUrl); after that the client
 // can get a fresh one from GET /api/v1/agent/files/<key>.
 export const publishGeneratedFile = async (
   owner: { userId: string; conversationId: string },

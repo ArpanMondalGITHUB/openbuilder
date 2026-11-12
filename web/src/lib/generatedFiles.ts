@@ -34,8 +34,8 @@ const expiryOf = (params: URLSearchParams): number | null => {
     return Date.UTC(y, mo - 1, d, h, mi, s) + seconds * 1000
 }
 
-const slug = (text: string) =>
-    text.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || "image"
+const slug = (text: string, fallback: string) =>
+    text.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").slice(0, 60) || fallback
 
 export function parseGeneratedFile(href: string, label = "", isImage = false): GeneratedFile | null {
     let u: URL
@@ -45,16 +45,30 @@ export function parseGeneratedFile(href: string, label = "", isImage = false): G
         return null
     }
     if (u.protocol !== "https:" || !u.searchParams.has("X-Amz-Signature")) return null
-    const match = decodeURIComponent(u.pathname).match(KEY_PATTERN)
+    let match: RegExpMatchArray | null
+    try {
+        match = decodeURIComponent(u.pathname).match(KEY_PATTERN)
+    } catch {
+        return null
+    }
     if (!match) return null
 
     const key = match[1]
     const ext = match[2].toLowerCase()
     const kind = KIND_BY_EXT[ext] ?? "file"
     const text = label.trim()
-    const name = isImage || kind === "image" ? `${slug(text)}.${ext}` : text.includes(".") ? text : `${slug(text) || "file"}.${ext}`
+    const name = isImage || kind === "image" ? `${slug(text, "image")}.${ext}` : text.includes(".") ? text : `${slug(text, "file")}.${ext}`
 
     return { key, url: href, name, ext, kind, alt: isImage ? text : "", expiresAt: expiryOf(u.searchParams) }
+}
+
+// Expiry of any presigned link (ms epoch), or null if it carries none
+export const linkExpiry = (href: string): number | null => {
+    try {
+        return expiryOf(new URL(href).searchParams)
+    } catch {
+        return null
+    }
 }
 
 // A link counts as expired a minute early so it doesn't die between render and click.

@@ -119,6 +119,7 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
         }
 
         if (before.trim()) segments.push({ type: "text", text: before.trim() })
+        const beforeMarkdown = withAssets(headingRemoved ? before : rawBefore)
 
         if (path || code.split("\n").length >= MIN_FILE_LINES) {
             const ext = EXT_BY_LANG[language] ?? "txt"
@@ -130,7 +131,7 @@ export function parseMessage(messageId: string, content: string): ParsedMessage 
         }
         const placeholder = `${fence}${SEGMENT_PLACEHOLDER_LANG}\n${indent}${segments.length - 1}\n${indent}${fence}`
         // the path heading became the file name, so it is dropped from the text
-        markdown += (headingRemoved ? `${before}\n\n${indent}` : rawBefore) + placeholder
+        markdown += (headingRemoved ? `${beforeMarkdown}\n\n${indent}` : beforeMarkdown) + placeholder
         last = m.index! + m[0].length
     }
 

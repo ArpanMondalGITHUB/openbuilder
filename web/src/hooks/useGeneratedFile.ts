@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import filesApi, { type Disposition } from "../api/files.api"
-import { isExpired, type GeneratedFile } from "../lib/generatedFiles"
+import { isExpired, linkExpiry, type GeneratedFile } from "../lib/generatedFiles"
 
 // Fresh links are shared by every card showing the same file, and reused until they expire.
 const cache = new Map<string, { url: string; expiresAt: number }>()
@@ -15,7 +15,10 @@ export async function freshUrl(file: GeneratedFile, disposition?: Disposition): 
     const hit = cache.get(k)
     if (hit && hit.expiresAt > Date.now()) return hit.url
     const url = await filesApi.getUrl(file.key, { disposition, name: file.name })
-    cache.set(k, { url, expiresAt: Date.now() + FRESH_TTL_MS })
+    // the backend may sign for less than 15 minutes when its credentials expire sooner
+    const signedUntil = linkExpiry(url)
+    const expiresAt = Math.min(Date.now() + FRESH_TTL_MS, signedUntil === null ? Infinity : signedUntil - 60_000)
+    cache.set(k, { url, expiresAt })
     return url
 }
 
