@@ -32,8 +32,25 @@ export function isPreviewable(artifact: Artifact): boolean {
 
 // ---- (c) which file do we run first? ----
 const fileName = (path: string) => path.split("/").pop() ?? path
-const baseName = (path: string) => fileName(path).replace(/\.\w+$/, "")
-const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const IMPORT_SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g
+const RESOLVE_EXTS = ["", ".tsx", ".ts", ".jsx", ".js", "/index.tsx", "/index.ts", "/index.jsx", "/index.js"]
+
+// Same rules as `resolve` in preview-runtime.js (which can't be imported: it is inlined as text).
+export function resolveImport(spec: string, from: string, paths: Set<string>): string | null {
+    if (!(spec.startsWith(".") || spec.startsWith("/") || spec.startsWith("@/"))) return null // npm package
+    const joined = spec.startsWith("@/")
+        ? "src/" + spec.slice(2)
+        : spec.startsWith("/")
+          ? spec.slice(1)
+          : from.split("/").slice(0, -1).concat(spec).join("/")
+    const parts: string[] = []
+    for (const p of joined.split("/")) {
+        if (p === "..") parts.pop()
+        else if (p && p !== ".") parts.push(p)
+    }
+    const base = parts.join("/")
+    return RESOLVE_EXTS.map((ext) => base + ext).find((p) => paths.has(p)) ?? null
+}
 
 export function pickEntry(files: ArtifactFile[]): string {
     const sources = files.filter((f) => SOURCE.test(f.path))
@@ -43,11 +60,15 @@ export function pickEntry(files: ArtifactFile[]): string {
     if (app) return app.path
 
     // 2. a file with `export default` that no other file imports (the "top" component)
-    const isImported = (file: ArtifactFile) => {
-        const pattern = new RegExp(`from\\s+["'][^"']*/${escapeRegex(baseName(file.path))}(\\.\\w+)?["']`)
-        return sources.some((other) => other !== file && pattern.test(other.code))
+    const paths = new Set(files.map((f) => f.path))
+    const imported = new Set<string>()
+    for (const f of sources) {
+        for (const [, spec] of f.code.matchAll(IMPORT_SPEC)) {
+            const target = resolveImport(spec, f.path, paths)
+            if (target && target !== f.path) imported.add(target)
+        }
     }
-    const top = sources.find((f) => /export\s+default/.test(f.code) && !isImported(f))
+    const top = sources.find((f) => /export\s+default/.test(f.code) && !imported.has(f.path))
     if (top) return top.path
 
     // 3. fall back to the first source file

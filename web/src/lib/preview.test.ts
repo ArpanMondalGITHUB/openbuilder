@@ -27,6 +27,24 @@ describe("pickEntry", () => {
         ]
         expect(pickEntry(files)).toBe("src/components/ProfileCard.tsx")
     })
+    it("treats a directory import as importing its index.tsx", () => {
+        const files = [
+            file("src/components/Card/index.tsx", "export default function Card() {}"),
+            file("src/Page.tsx", 'import Card from "./components/Card"\nexport default function Page() {}'),
+        ]
+        expect(pickEntry(files)).toBe("src/Page.tsx")
+    })
+    it("resolves @/ aliases and lazy import() the same way as the runtime", () => {
+        const files = [
+            file("src/components/Modal/index.tsx", "export default function Modal() {}"),
+            file("src/pages/Settings.tsx", "export default function Settings() {}"),
+            file(
+                "src/Shell.tsx",
+                'import Modal from "@/components/Modal"\nconst S = lazy(() => import("./pages/Settings"))\nexport default function Shell() {}'
+            ),
+        ]
+        expect(pickEntry(files)).toBe("src/Shell.tsx")
+    })
     it("ignores css files", () => {
         expect(pickEntry([file("src/styles/card.css"), file("src/Card.tsx")])).toBe("src/Card.tsx")
     })

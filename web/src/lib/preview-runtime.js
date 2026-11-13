@@ -54,7 +54,9 @@ try {
         compiled[f.path] = Babel.transform(f.code, {
             filename: f.path,
             presets: ["typescript", ["react", { runtime: "automatic" }]],
-            plugins: ["transform-modules-commonjs"],
+            // transform-dynamic-import makes the commonjs pass turn import() into a lazy require(),
+            // so lazy-loaded files go through our resolver and their packages get preloaded below
+            plugins: ["transform-dynamic-import", "transform-modules-commonjs"],
         }).code
     }
 
