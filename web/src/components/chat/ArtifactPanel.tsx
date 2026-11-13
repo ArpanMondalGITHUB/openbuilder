@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent } from "react"
 import { Dialog } from "radix-ui"
 import { Highlight, Prism, type PrismTheme } from "prism-react-renderer"
-import { Check, ChevronRight, Copy, Download, FileCode2, WrapText, X } from "lucide-react"
+import { Check, ChevronRight, Code, Copy, Download, Eye, FileCode2, WrapText, X } from "lucide-react"
 import type { Artifact } from "../../lib/artifacts"
+import { isPreviewable } from "../../lib/preview"
+import PreviewFrame from "./PreviewFrame"
 
 // Must match the `lg:` classes below: from lg up the panel is a resizable side card,
 // under it a full-screen modal.
@@ -77,6 +79,12 @@ export default function ArtifactPanel({ artifact, activePath, onSelectFile, onCl
     const crumbs = file.path.split("/")
     const lineCount = file.code.split("\n").length
     const multi = artifact.files.length > 1
+    const canPreview = isPreviewable(artifact)
+    // the mode belongs to one artifact: opening another reply starts back on "code"
+    const [view, setView] = useState<{ id: string; mode: "code" | "preview" }>({ id: artifact.id, mode: "code" })
+    const mode = view.id === artifact.id ? view.mode : "code"
+    const setMode = (next: "code" | "preview") => setView({ id: artifact.id, mode: next })
+    const showPreview = canPreview && mode === "preview"
 
     // new file: start at the top-left and keep its tab in view
     useEffect(() => {
@@ -220,9 +228,33 @@ export default function ArtifactPanel({ artifact, activePath, onSelectFile, onCl
                                 <h2 className="truncate text-sm font-semibold tracking-normal">{artifact.title}</h2>
                             </Dialog.Title>
                             <p className="text-xs text-muted-foreground">
-                                {artifact.files.length} {artifact.files.length === 1 ? "file" : "files"} · Code
+                                {artifact.files.length} {artifact.files.length === 1 ? "file" : "files"} · {showPreview ? "Preview" : "Code"}
                             </p>
                         </div>
+                        {canPreview && (
+                            <div role="group" aria-label="View" className="flex shrink-0 rounded-lg border border-white/10 p-0.5">
+                                {(
+                                    [
+                                        { value: "code", label: "Code", Icon: Code },
+                                        { value: "preview", label: "Preview", Icon: Eye },
+                                    ] as const
+                                ).map(({ value, label, Icon }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setMode(value)}
+                                        aria-pressed={mode === value}
+                                        aria-label={label}
+                                        className={`inline-flex h-9 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring lg:h-7 ${
+                                            mode === value ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-white/8 hover:text-foreground"
+                                        }`}
+                                    >
+                                        <Icon className="size-3.5" aria-hidden="true" />
+                                        <span className="hidden sm:inline">{label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                         <button
                             type="button"
                             onClick={copy}
@@ -240,6 +272,10 @@ export default function ArtifactPanel({ artifact, activePath, onSelectFile, onCl
                         </button>
                     </header>
 
+                    {showPreview ? (
+                        <PreviewFrame artifact={artifact} />
+                    ) : (
+                    <>
                     {/* file tabs */}
                     {multi && (
                         <div
@@ -332,6 +368,8 @@ export default function ArtifactPanel({ artifact, activePath, onSelectFile, onCl
                             )}
                         </Highlight>
                     </div>
+                    </>
+                    )}
                 </aside>
             </Dialog.Content>
         </Dialog.Root>
