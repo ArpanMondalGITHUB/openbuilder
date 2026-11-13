@@ -5,6 +5,7 @@ import { ApiError } from "../middlewares/agent.middlewares"
 import { config } from "../config/agent.config";
 import { getMemory, addToMemory } from "../config/memory"
 import { inflight, inflightKey } from "../config/inflight"
+import { getSignedDownloadUrl, isOwnedBy, safeFileName } from "../services/storage"
 
 const userIdOf = (req: Request): string => {
     const userId = (req as any).user?.id
@@ -35,7 +36,7 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
         const history = await getMemory(conversationId, userId)
 
         // the signal stops the graph between nodes, and inside a node when it passes config to llm.invoke
-        const result = await graph.invoke({ prompt, conversationId, history }, { signal: controller.signal })
+        const result = await graph.invoke({ prompt, conversationId, userId, history }, { signal: controller.signal })
         if (controller.signal.aborted) {
             return res.status(CANCELLED).json({ message: "Cancelled" })
         }
@@ -76,7 +77,28 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
     }
 }
 
-export const handleCancelGraph = (req: Request, res: Response, next: NextFunction) => {
+// Fresh short-lived link for a generated file (the one in the chat message expires after 7 days).
+// Keys start with the owner's userId, so this is the authorization check.
+export const handleGetFileUrl = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = userIdOf(req)
+        const segments = (req.params as any).key as string[] | string | undefined
+        const key = Array.isArray(segments) ? segments.join("/") : segments
+        if (!key || !isOwnedBy(key, userId)) throw new ApiError(404, "File not found")
+
+        // ?disposition=inline|attachment&name=<file name> — open a PDF in a tab, or download an image
+        const { disposition, name } = req.query
+        const type = disposition === "inline" || disposition === "attachment" ? disposition : undefined
+        const ext = key.split(".").pop() ?? ""
+        const fileName = type && typeof name === "string" && name.trim() ? safeFileName(name.replace(/\.\w+$/, ""), ext) : undefined
+
+        res.json({ url: await getSignedDownloadUrl(key, undefined, type && { type, fileName }) })
+    } catch (error) {
+        next(error)
+    }
+}
+
+export const handleCancelGraph =(req: Request, res: Response, next: NextFunction) => {
     try {
         const userId = userIdOf(req)
         const requestId = req.header("idempotency-key")
