@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import axios from "axios"
-import { AlertCircle, Loader2, RotateCcw, Sparkles } from "lucide-react"
+import { AlertCircle, Loader2, RotateCcw, Sparkles, Zap } from "lucide-react"
 import chatApi, { type Message } from "../api/chat.api"
+import { UPGRADE_PATH, limitReachedFrom } from "../lib/billing"
 import Composer from "../components/home/Composer"
 import ArtifactPanel from "../components/chat/ArtifactPanel"
 import MessageContent from "../components/chat/MessageContent"
@@ -34,6 +35,8 @@ function Chat({ conversationId }: { conversationId: string }) {
     // requestId of the turn we're waiting on an answer for
     const [waiting, setWaiting] = useState<string | null>(null)
     const [failed, setFailed] = useState<{ requestId: string; content: string } | null>(null)
+    // set when the backend answered 402: over the monthly prompt limit
+    const [limitReached, setLimitReached] = useState<string | null>(null)
     // which reply's files are in the side panel, and which file is shown
     const [open, setOpen] = useState<{ messageId: string; path: string } | null>(null)
     // bumping key remounts the composer with the stopped prompt so it can be edited
@@ -97,6 +100,7 @@ function Chat({ conversationId }: { conversationId: string }) {
         async (content: string, requestId: string = crypto.randomUUID()) => {
             stopped.current.delete(requestId) // a Retry un-stops it
             setFailed(null)
+            setLimitReached(null)
             setWaiting(requestId)
             // show the user's message immediately; replaced by the saved row later
             setMessages((prev) =>
@@ -130,6 +134,17 @@ function Chat({ conversationId }: { conversationId: string }) {
                 }
             } catch (error) {
                 if (axios.isCancel(error)) return // the user pressed Stop
+                // over the prompt limit: no answer is coming, so don't poll; offer an upgrade
+                const limit = limitReachedFrom(error)
+                if (limit) {
+                    if (!mounted.current) return
+                    setMessages((prev) =>
+                        prev.map((m) => (m.role === "user" && m.request_id === requestId ? { ...m, status: "failed" } : m))
+                    )
+                    setWaiting(null)
+                    setLimitReached(limit.message)
+                    return
+                }
                 // timeout / 5xx — the agent may still answer, so fall through to polling
             } finally {
                 if (abortRef.current === controller) abortRef.current = null
@@ -268,6 +283,22 @@ function Chat({ conversationId }: { conversationId: string }) {
                             <div className="flex items-center gap-3 text-muted-foreground" role="status">
                                 <Sparkles className="size-5 shrink-0 animate-pulse text-lime-accent" aria-hidden="true" />
                                 <span className="text-sm">Thinking…</span>
+                            </div>
+                        )}
+
+                        {limitReached && !waiting && (
+                            <div
+                                role="alert"
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-lime-accent/40 bg-card px-4 py-3 text-sm"
+                            >
+                                <span className="text-foreground">{limitReached}</span>
+                                <Link
+                                    to={UPGRADE_PATH}
+                                    className="inline-flex items-center gap-1.5 rounded-lg bg-lime-accent px-3 py-1.5 font-medium text-sage-900 hover:opacity-90"
+                                >
+                                    <Zap className="size-3.5" aria-hidden="true" />
+                                    Upgrade
+                                </Link>
                             </div>
                         )}
 

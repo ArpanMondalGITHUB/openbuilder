@@ -6,6 +6,7 @@ import { config } from "../config/agent.config";
 import { getMemory, addToMemory } from "../config/memory"
 import { inflight, inflightKey } from "../config/inflight"
 import { getSignedDownloadUrl, isOwnedBy, safeFileName } from "../services/storage"
+import { consumePrompt, refundPrompt } from "../services/billing.client"
 
 const userIdOf = (req: Request): string => {
     const userId = (req as any).user?.id
@@ -19,6 +20,16 @@ const CANCELLED = 499
 export const handleInvokeGraph = async (req: Request, res: Response, next: NextFunction) => {
     const controller = new AbortController()
     let key: string | null = null
+    // usage bookkeeping: refund the prompt if it was counted but no answer reached chat
+    let userId: string | null = null
+    let counted = false
+    let delivered = false
+    const refundIfUndelivered = () => {
+        if (counted && !delivered && userId) {
+            counted = false // refund at most once
+            refundPrompt(userId) // best effort, never throws
+        }
+    }
 
     try {
         const conversationId = req.params.conversationId as string
@@ -26,18 +37,22 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
         if (!conversationId) throw new ApiError(400,"ConversationId is required");
         if (!prompt) throw new ApiError(400, "Prompt is required");
 
-        const userId = userIdOf(req)
+        userId = userIdOf(req)
         const idempotencyKey = req.header("idempotency-key")
         if (idempotencyKey) {
             key = inflightKey(userId, idempotencyKey)
             inflight.set(key, controller)
         }
 
+        // monthly prompt limit: throws ApiError(402) when the user is over it
+        counted = (await consumePrompt(userId)).counted
+
         const history = await getMemory(conversationId, userId)
 
         // the signal stops the graph between nodes, and inside a node when it passes config to llm.invoke
         const result = await graph.invoke({ prompt, conversationId, userId, history }, { signal: controller.signal })
         if (controller.signal.aborted) {
+            refundIfUndelivered()
             return res.status(CANCELLED).json({ message: "Cancelled" })
         }
 
@@ -58,6 +73,7 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
                 timeout: 10_000,
             }
         )
+        delivered = true // the user got an answer: this prompt stays counted
 
         await addToMemory(conversationId, userId, [
             { role: "user", content: prompt },
@@ -66,6 +82,7 @@ export const handleInvokeGraph = async (req: Request, res: Response, next: NextF
 
         res.status(200).json({ result })
     } catch (error) {
+        refundIfUndelivered()
         // stopped by the user, or chat refused the reply because the attempt was cancelled:
         // nothing is saved to memory and it isn't a server error
         if (controller.signal.aborted || (error as any)?.response?.status === 409) {

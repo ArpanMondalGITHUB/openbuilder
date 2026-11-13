@@ -12,6 +12,7 @@ import {
 import { ApiError } from "../middlewares/chat.middlewares";
 import { config } from "../config/chat.config";
 import { callAgent, cancelAgent } from "../helpers/agent.helpers";
+import { messageRoleFrom } from "../helpers/role.helpers";
 import { idempotencyKeySchema } from "../models/chat.zod_models";
 import { randomUUID } from "crypto";
 
@@ -87,11 +88,7 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
 
         // only the agent service may write an assistant message — a wrong key means
         // misconfiguration, so fail loudly instead of silently saving it as a user message
-        const internalKey = req.header("x-internal-key")
-        if (internalKey && internalKey !== config.internalKey) {
-            throw new ApiError(401, "Invalid internal key")
-        }
-        const role = internalKey ? "assistant" : "user"
+        const role = messageRoleFrom(req.header("x-internal-key"), config.internalKey)
 
                 const rawKey = req.header("idempotency-key")
         if (rawKey && !idempotencyKeySchema.safeParse(rawKey).success) {
@@ -155,6 +152,17 @@ export const handleSaveMessage = async(req:Request,res:Response,next:NextFunctio
             // the agent answers 499 when the user stopped this attempt
             if ((error as any)?.response?.status === 499) {
                 return res.status(499).json({ userMessage: message, status: "cancelled", requestId })
+            }
+            // over the monthly prompt limit (billing → agent → here): show "upgrade", not a server error
+            if ((error as any)?.response?.status === 402) {
+                await failAttemptIfPending(conversationId, userId, requestId)
+                return res.status(402).json({
+                    message: (error as any).response.data?.message ?? "Monthly prompt limit reached",
+                    upgrade: true,
+                    userMessage: message,
+                    status: "failed",
+                    requestId,
+                })
             }
             // a timeout does not mean the agent died — it may still be running and will call back
             if ((error as any)?.code !== "ECONNABORTED") {

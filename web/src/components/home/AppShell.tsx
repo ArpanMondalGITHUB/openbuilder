@@ -21,6 +21,7 @@ export default function AppShell() {
 
     const chatMatch = useMatch("/chat/:conversationId")
     const activeId = chatMatch?.params.conversationId ?? null
+    const billingActive = useMatch("/billing") !== null
 
     const [sidebarOpen, setSidebarOpen] = useState(isDesktop)
     const [conversations, setConversations] = useState<Conversation[]>([])
@@ -74,6 +75,8 @@ export default function AppShell() {
                 onNew={() => go("/home")}
                 onSelect={(id) => go(`/chat/${id}`)}
                 onLogout={() => dispatch(logout())}
+                onBilling={() => go("/billing")}
+                billingActive={billingActive}
                 activeId={activeId}
                 user={user}
                 conversations={conversations}
