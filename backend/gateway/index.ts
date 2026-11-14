@@ -32,6 +32,15 @@ app.use("/api/v1/agent", verifyAccessToken, proxy(config.agentServiceUrl, {
     proxyReqOptDecorator: forwardUserHeaders,
 }))
 
+app.use("/api/v1/billing/webhooks", proxy(config.billingServiceUrl,{
+        proxyReqPathResolver:req => "/api/v1/billing/webhooks" + req.url
+}))
+
+app.use("/api/v1/billing", verifyAccessToken, proxy(config.billingServiceUrl, {
+    proxyReqPathResolver: (req) => `/api/v1/billing${req.url}`,
+    proxyReqOptDecorator: forwardUserHeaders,
+}))
+
 app.get('/', (_req, res) => {
     res.json({ status: 'ok' })
 })

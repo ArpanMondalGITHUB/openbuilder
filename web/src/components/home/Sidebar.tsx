@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 import {
     ChevronDown,
     Clock,
+    CreditCard,
     FolderClosed,
     LayoutGrid,
     LogOut,
@@ -29,6 +30,8 @@ interface SidebarProps {
     onNew: () => void
     onSelect: (id: string) => void
     onLogout: () => void
+    onBilling: () => void
+    billingActive: boolean
     activeId: string | null
     user: User | null
     conversations: Conversation[]
@@ -41,6 +44,8 @@ export default function Sidebar({
     onNew,
     onSelect,
     onLogout,
+    onBilling,
+    billingActive,
     activeId,
     user,
     conversations,
@@ -83,6 +88,15 @@ export default function Sidebar({
                     <button type="button" className="side-item">
                         <SlidersHorizontal className="size-4.5" />
                         Customize
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onBilling}
+                        aria-current={billingActive ? "page" : undefined}
+                        className={`side-item ${billingActive ? "bg-sidebar-accent text-sidebar-foreground" : ""}`}
+                    >
+                        <CreditCard className="size-4.5" />
+                        Plans &amp; billing
                     </button>
                 </nav>
 

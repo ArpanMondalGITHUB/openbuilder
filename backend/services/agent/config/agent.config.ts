@@ -10,6 +10,7 @@ export const config = {
   isProduction: process.env.NODE_ENV === "production",
   databaseUrl: required("DATABASE_URL"),
   chatUrl:required("CHAT_SERVICE"),
+  billingUrl: required("BILLING_SERVICE"),
   internalKey: required("INTERNAL_KEY"),
   dbSslInsecure: process.env.DB_SSL_INSECURE === "true",
   redisUrl: process.env.REDIS_URL,

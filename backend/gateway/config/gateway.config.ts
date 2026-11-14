@@ -10,4 +10,5 @@ export const config = {
     authServiceUrl: required("AUTH_SERVICE"),
     chatServiceUrl: required("CHAT_SERVICE"),
     agentServiceUrl: required("AGENT_SERVICE"),
+    billingServiceUrl:required("BILLING_SERVICE")
 }
